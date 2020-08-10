@@ -1,0 +1,60 @@
+#!/usr/bin/python3
+import scapy.all as sc
+from mac_vendor_lookup import MacLookup
+import optparse
+import random
+class style():
+        RED = '\033[31m'
+        GREEN = '\033[32m'
+        YELLOW = '\033[33m'
+        BLUE = '\033[34m'
+        RESET = '\033[0m'
+        MAGENTA = '\033[35m'
+        BOLD = '\033[1m'
+        UNDERLINE = '\033[4m'
+
+colors = [style.RED,style.GREEN,style.BLUE,style.YELLOW,style.MAGENTA]
+
+def user_input():
+    parser = optparse.OptionParser()
+    parser.add_option('-t', '--target', dest='target', help='Specify Target')
+    (options, args) = parser.parse_args()
+    if not options.target:
+        parser.error("Target not specified , For more details use --help")
+    return options
+
+
+def  scan(target):
+    arp_request = sc.ARP(pdst=target)
+    broadcast = sc.Ether(dst="ff:ff:ff:ff:ff:ff")
+    arp_request_broadcast = broadcast/arp_request
+    answered = sc.srp(arp_request_broadcast,verbose=False,timeout=1)[0]
+    clients_list = []
+    for clients in answered:
+        clients_dict = {"ip" : clients[1].psrc,"mac" : clients[1].hwsrc}
+        clients_list.append(clients_dict)
+    return clients_list
+
+def maclookup(return_list):
+    mac_vendor = []
+    for old_mac in return_list:
+        try:
+            mac = MacLookup().lookup(old_mac["mac"])
+        except:
+            mac = "Unknown"
+        if mac == "PCS Systemtechnik GmbH" or mac == "Oracle Corp":
+            mac = "Virtual Box"
+        mac_vendor.append(mac)
+    return mac_vendor
+
+def print_list(return_list,mac_vendor):
+    print(style.BOLD+style.UNDERLINE+"\nNetworkscanner BY - Harshit Joshi\n"+style.RESET)
+    print("\n"+"-"*80+"\nIP\t\t|\tMAC\t\t\t|\tHOST\n"+"-"*80)
+    for clients,new_mac in zip(return_list,mac_vendor):
+        print(style.BOLD+random.choice(colors)+clients["ip"]+"\t|\t"+clients["mac"]+"\t|\t"+new_mac)
+    print(style.RESET)
+target = user_input()
+clients_list = scan(target.target)
+mac_vendor = maclookup(clients_list)
+print_list(clients_list,mac_vendor)
+
